@@ -1,3 +1,6 @@
+import {findProvider} from './utils/aiProviders.mjs';
+import AISettingsPanel from './components/AISettingsPanel';
+import {analyzeText,type AISettings} from './services/aiClient';
 
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { 
@@ -24,6 +27,7 @@ import { extractCodesFromImage } from './services/geminiService';
 import { DetectedCode, ExcelRow } from './types';
 
 export default function App() {
+ const [ai,setAI]=useState<AISettings|null>(null), generation=useRef(0), request=useRef<AbortController|null>(null);useEffect(()=>()=>request.current?.abort(),[]);
   const [images, setImages] = useState<{ id: string; url: string; base64: string }[]>([]);
   const [codes, setCodes] = useState<DetectedCode[]>([]);
   const [excelData, setExcelData] = useState<ExcelRow[] | null>(null);
@@ -55,13 +59,13 @@ export default function App() {
   };
 
   const processImages = async () => {
-    if (images.length === 0) return;
+    if (images.length === 0||!ai) return;const id=++generation.current,ctrl=new AbortController();request.current=ctrl;
     setIsProcessing(true);
     const allDetected: DetectedCode[] = [];
 
     try {
       for (const img of images) {
-        const foundStrings = await extractCodesFromImage(img.base64);
+        const foundStrings = await extractCodesFromImage(img.base64,ai,ctrl.signal);
         foundStrings.forEach(s => {
           if (!allDetected.some(existente => existente.code === s.toUpperCase())) {
             allDetected.push({
@@ -74,12 +78,12 @@ export default function App() {
           }
         });
       }
-      setCodes(allDetected);
+      if(id!==generation.current)return;setCodes(allDetected);
       setStep(2);
     } catch (error) {
-      setError(error instanceof Error?error.message:'Erro ao processar imagens.');
+      if(id===generation.current)setError(error instanceof Error?error.message:'Erro ao processar imagens.');
     } finally {
-      setIsProcessing(false);
+      if(id===generation.current)setIsProcessing(false);
     }
   };
 
@@ -187,8 +191,8 @@ export default function App() {
         </div>
       </header>
 
-      <main className="max-w-5xl mx-auto px-4 pt-8">
-        <p className="mb-4 text-sm text-slate-600">Revise os códigos antes de comparar. Ao usar OCR, as imagens são enviadas ao Gemini pelo servidor.</p>
+      <main className="max-w-5xl mx-auto px-4 pt-8"><details className="border rounded p-4 mb-6"><summary>Configurar IA para imagens</summary><AISettingsPanel capability="vision" value={ai} disabled={isProcessing} onChange={s=>{generation.current++;request.current?.abort();setIsProcessing(false);setError('');setAI(s);}}/></details><p className="text-sm my-3">IA para imagens: {ai?findProvider(ai.provider).name:'não configurada'}.</p>
+        <p className="mb-4 text-sm text-slate-600">Revise os códigos antes de comparar. Ao usar OCR, as imagens são enviadas ao provedor selecionado pelo servidor.</p>
         {error && <p role="alert" className="mb-4 text-red-700">{error}</p>}
         {step===1 && <details className="mb-6 bg-white p-4 rounded-xl border"><summary>Conferir sem IA: informar códigos manualmente</summary><label className="block mt-3" htmlFor="manual-codes">Um código por linha</label><textarea id="manual-codes" maxLength={10000} value={manualCodes} onChange={e=>setManualCodes(e.target.value)} className="w-full border rounded p-2"/><button onClick={applyManual} className="mt-2 bg-indigo-600 text-white px-4 py-2 rounded">Usar códigos informados</button></details>}
 
@@ -263,7 +267,7 @@ export default function App() {
                 <div className="flex justify-center mt-12">
                   <button 
                     onClick={processImages}
-                    disabled={isProcessing}
+                    disabled={isProcessing||!ai}
                     className="bg-indigo-600 hover:bg-indigo-700 text-white px-10 py-4 rounded-xl font-bold shadow-lg shadow-indigo-200 transition-all transform hover:-translate-y-1 active:translate-y-0 disabled:opacity-50 flex items-center space-x-2"
                   >
                     {isProcessing ? (
