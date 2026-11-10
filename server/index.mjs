@@ -1,3 +1,4 @@
+import {providerFailure} from './provider.mjs';
 import {createServer} from 'node:http';
 import {readFile,stat} from 'node:fs/promises';
 import {resolve,sep,extname} from 'node:path';
@@ -45,7 +46,7 @@ export function createApp({key=process.env.GEMINI_API_KEY,model=process.env.GEMI
     const config=TASK==='codes'?{responseMimeType:'application/json',responseSchema:{type:'ARRAY',items:{type:'STRING'}},temperature:0}:{temperature:.5};
     let response;
     try{response=await request(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,{method:'POST',signal:AbortSignal.timeout(25000),headers:{'content-type':'application/json','x-goog-api-key':key},body:JSON.stringify({systemInstruction:{parts:[{text:instruction}]},contents:[{role:'user',parts:[{inlineData:{mimeType:image.mimeType,data:image.data}},{text:image.additionalTerms||'Analise a imagem.'}]}],generationConfig:config})});}catch{return send(504,{error:'O provedor não respondeu no prazo. Tente novamente.'});}
-    if(!response.ok)return send(502,{error:`Falha no provedor de IA (HTTP ${response.status}). Verifique configuração, modelo e cota.`});
+    if(!response.ok){const failure=providerFailure(response.status);return send(failure.status,failure.body);}
     try{const data=await response.json();const text=data.candidates?.[0]?.content?.parts?.map(p=>p.text||'').join('');return send(200,{result:parseResult(text)});}catch{return send(502,{error:'O provedor retornou uma resposta inválida. Nenhum resultado foi aplicado.'});}
    }finally{busy=false;}
   }
