@@ -1,5 +1,7 @@
 # Confere RP
 
+![Confere RP — conferência de documentos com inteligência artificial](confere-rp-banner.jpeg)
+
 ## Escolha de provedor e chave por aba
 
 Imagens/OCR: Google Gemini, DeepSeek e OpenAI. Use modelos com visão. DeepSeek Flash aceita imagens; DeepSeek Pro é recusado localmente para esta função. A disponibilidade dos demais modelos depende da sua conta.
@@ -78,3 +80,4 @@ Use arquivos de exemplo sintéticos ou que você tenha autorização para compar
 ## Início e diagnóstico simplificados
 
 Após `npm ci`, execute `npm run diagnostico` para verificar Node, dependências, build e presença de configuração sem revelar chaves ou consumir cota. Execute `npm run iniciar` para compilar a versão atual e abrir o servidor local em um único terminal. A faixa de estado da interface distingue configuração ausente e integração ainda não comprovada. Encontrar uma chave não confirma que ela é válida nem que existe cota gratuita. Nenhum teste de geração é iniciado automaticamente.
+
